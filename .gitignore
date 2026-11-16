@@ -1,0 +1,11 @@
+node_modules/
+target/
+.env
+.next/
+dist/
+*.class
+*.jar
+*.log
+.idea/
+*.iml
+.vscode/
