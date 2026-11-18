@@ -1,0 +1,245 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, BarChart3, Gauge, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
+import { Badge } from "@/components/ui/Badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
+import { analyticsService } from "@/services/analyticsService";
+import type { DashboardStats } from "@/types/analytics";
+
+const defaultStats: DashboardStats = {
+  totalAgents: 24,
+  verifiedAgents: 18,
+  totalPosts: 412,
+  totalComments: 186,
+  totalNotifications: 968,
+  deliveryRate: 0.92,
+  avgRelevanceScore: 0.84,
+  engagementRate: 0.39,
+  avgRoutingLatencyMs: 132,
+  topTopics: [
+    { topic: "Food Delivery", count: 126 },
+    { topic: "Payments", count: 94 },
+    { topic: "Commerce", count: 81 },
+    { topic: "Festivals", count: 65 },
+  ],
+  notificationTrend: [
+    { date: "Mon", count: 88 },
+    { date: "Tue", count: 92 },
+    { date: "Wed", count: 110 },
+    { date: "Thu", count: 124 },
+    { date: "Fri", count: 119 },
+  ],
+  engagementTrend: [
+    { date: "Mon", count: 24 },
+    { date: "Tue", count: 31 },
+    { date: "Wed", count: 38 },
+    { date: "Thu", count: 42 },
+    { date: "Fri", count: 46 },
+  ],
+};
+
+export default function AnalyticsPage() {
+  const [stats, setStats] = useState<DashboardStats>(defaultStats);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadStats() {
+      setLoading(true);
+      try {
+        const data = await analyticsService.getDashboardStats();
+        setStats(data);
+      } catch {
+        setStats(defaultStats);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void loadStats();
+  }, []);
+
+  const maxNotificationBar = useMemo(
+    () => Math.max(...stats.notificationTrend.map((item) => item.count), 1),
+    [stats.notificationTrend]
+  );
+
+  const maxEngagementBar = useMemo(
+    () => Math.max(...stats.engagementTrend.map((item) => item.count), 1),
+    [stats.engagementTrend]
+  );
+
+  const totalTopicCount = useMemo(
+    () => stats.topTopics.reduce((sum, topic) => sum + topic.count, 0),
+    [stats.topTopics]
+  );
+
+  return (
+    <main className="min-h-screen bg-slate-950 p-6 text-slate-100">
+      <div className="mx-auto max-w-7xl">
+        <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/5 px-3 py-1 text-xs font-medium text-violet-200">
+              <BarChart3 className="h-3.5 w-3.5" />
+              Admin analytics
+            </div>
+            <h1 className="text-3xl font-bold text-white md:text-4xl">Network performance</h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link href="/" className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-100 hover:bg-slate-700">
+              <ArrowLeft className="h-4 w-4" />
+              Dashboard
+            </Link>
+          </div>
+        </header>
+
+        <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {[
+            { label: "Total agents", value: stats.totalAgents, icon: ShieldCheck, tone: "bg-blue-500/10 text-blue-300" },
+            { label: "Verified", value: stats.verifiedAgents, icon: Sparkles, tone: "bg-emerald-500/10 text-emerald-300" },
+            { label: "Avg relevance", value: `${(stats.avgRelevanceScore * 100).toFixed(0)}%`, icon: Gauge, tone: "bg-violet-500/10 text-violet-300" },
+            { label: "Delivery rate", value: `${(stats.deliveryRate * 100).toFixed(0)}%`, icon: TrendingUp, tone: "bg-amber-500/10 text-amber-300" },
+          ].map((metric) => (
+            <Card key={metric.label} className="border-slate-800 bg-slate-900/70">
+              <CardContent className="flex items-center justify-between gap-4 pt-5">
+                <div>
+                  <p className="text-sm text-slate-400">{metric.label}</p>
+                  <p className="mt-2 text-2xl font-bold text-white">{loading ? "—" : metric.value}</p>
+                </div>
+                <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${metric.tone}`}>
+                  <metric.icon className="h-6 w-6" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <Card className="border-slate-800 bg-slate-900/70">
+            <CardHeader className="border-b border-slate-800 pb-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-2xl">Notification volume</CardTitle>
+                  <CardDescription>Routed updates generated by the scoring engine.</CardDescription>
+                </div>
+                <Badge variant="secondary">Weekly</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-5">
+              <div className="flex h-56 items-end gap-3">
+                {stats.notificationTrend.map((point) => (
+                  <div key={point.date} className="flex flex-1 flex-col items-center justify-end gap-2">
+                    <div
+                      className="w-full rounded-t-xl bg-gradient-to-t from-blue-500 to-cyan-400 shadow-[0_0_30px_rgba(59,130,246,0.35)]"
+                      style={{ height: `${(point.count / maxNotificationBar) * 100}%`, minHeight: 12 }}
+                      title={`${point.date}: ${point.count}`}
+                    />
+                    <span className="text-xs text-slate-400">{point.date}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-800 bg-slate-900/70">
+            <CardHeader className="border-b border-slate-800 pb-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-2xl">Topic mix</CardTitle>
+                  <CardDescription>Most active content categories.</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-5">
+              {stats.topTopics.map((topic) => {
+                const percent = (topic.count / totalTopicCount) * 100;
+                return (
+                  <div key={topic.topic} className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-300">{topic.topic}</span>
+                      <span className="text-slate-400">{topic.count}</span>
+                    </div>
+                    <div className="h-2.5 rounded-full bg-slate-800">
+                      <div
+                        className="h-2.5 rounded-full bg-gradient-to-r from-violet-500 to-blue-400"
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+          <Card className="border-slate-800 bg-slate-900/70">
+            <CardHeader className="border-b border-slate-800 pb-5">
+              <CardTitle className="text-2xl">Trust and response</CardTitle>
+              <CardDescription>Operational quality indicators.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5 pt-5">
+              <div>
+                <div className="mb-2 flex items-center justify-between text-sm">
+                  <span className="text-slate-300">Engagement rate</span>
+                  <span className="font-medium text-white">{(stats.engagementRate * 100).toFixed(0)}%</span>
+                </div>
+                <div className="h-2.5 rounded-full bg-slate-800">
+                  <div className="h-2.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-400" style={{ width: `${stats.engagementRate * 100}%` }} />
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-2 flex items-center justify-between text-sm">
+                  <span className="text-slate-300">Average relevance</span>
+                  <span className="font-medium text-white">{(stats.avgRelevanceScore * 100).toFixed(0)}%</span>
+                </div>
+                <div className="h-2.5 rounded-full bg-slate-800">
+                  <div className="h-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-blue-400" style={{ width: `${stats.avgRelevanceScore * 100}%` }} />
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Total posts</p>
+                  <p className="mt-2 text-2xl font-semibold text-white">{stats.totalPosts}</p>
+                </div>
+                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Comments</p>
+                  <p className="mt-2 text-2xl font-semibold text-white">{stats.totalComments}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-800 bg-slate-900/70">
+            <CardHeader className="border-b border-slate-800 pb-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-2xl">Engagement trend</CardTitle>
+                  <CardDescription>Response momentum across the last week.</CardDescription>
+                </div>
+                <Badge variant="success">Upward</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-5">
+              <div className="flex h-56 items-end gap-3">
+                {stats.engagementTrend.map((point) => (
+                  <div key={point.date} className="flex flex-1 flex-col items-center justify-end gap-2">
+                    <div
+                      className="w-full rounded-t-xl bg-gradient-to-t from-emerald-500 to-teal-400"
+                      style={{ height: `${(point.count / maxEngagementBar) * 100}%`, minHeight: 12 }}
+                      title={`${point.date}: ${point.count}`}
+                    />
+                    <span className="text-xs text-slate-400">{point.date}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </main>
+  );
+}

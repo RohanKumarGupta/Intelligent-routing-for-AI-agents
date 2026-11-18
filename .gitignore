@@ -2,6 +2,8 @@ node_modules/
 target/
 .env
 .next/
+*.tsbuildinfo
+.tsupgrader/
 dist/
 *.class
 *.jar
